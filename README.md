@@ -126,6 +126,8 @@ bash build.sh x86_64-unknown-linux-musl
 
 发布版的静态编译需要对应的 musl 工具链和 C 编译器。功能测试使用独立的 Python aioquic 实现生成 TLS/QUIC 流量，见 `tests/`。生产运行不依赖这些测试工具。
 
+0.1.3 大连接量下的 HTTPS 握手与吞吐优化见 [性能与验收记录](docs/0.1.3验收.md)。
+
 0.1.2 异常网络、故障修正与验收见 [本次验收记录](docs/0.1.2验收.md)；0.1.1 性能、容量保护与安全验收见 [容量管理验收](docs/0.1.1验收.md)；原 Go/Rust 对比见 [0.1.0 验收报告](docs/验收报告.md)。进程 RSS 不包含内核 socket/pipe 内存；回环压测结果不等于公网链路带宽。
 
 MIT License。

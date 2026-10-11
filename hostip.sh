@@ -3,10 +3,10 @@
 set -Eeuo pipefail
 umask 077
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-VERSION=0.1.2
+VERSION=0.1.3
 REPO=coexacx/host-router
-AMD64_SHA=44d88802262618d09d70fe06ce3266a10c64cd5076fdcdbe2437ac91cc19ac01
-ARM64_SHA=0554d78042e2e23bbfa9cc40d0d4402008e0cbd5fb44aa6c91b353b7cf6e6ac2
+AMD64_SHA=3746793a8331434f6533e1590d9ed5f9adf4638e62e6b37f30125b5cfb6b4afe
+ARM64_SHA=96e2ef1708b15104b34813a285cf866970a141b50b3b581454dae4492e6ee01d
 BIN="${HOST_ROUTER_BIN:-/usr/local/bin/host-router}"
 CFG="${HOST_ROUTER_CONFIG:-/etc/host-router/config.json}"
 SERVICE=host-router
