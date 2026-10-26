@@ -8,8 +8,8 @@ use std::{
     time::Duration,
 };
 use tokio::{
-    io::{Interest, unix::AsyncFd},
-    net::{TcpListener, TcpStream},
+    io::Interest,
+    net::{TcpListener, TcpStream, UdpSocket},
 };
 
 // Covers 64 ordinary-MTU GRO datagrams while keeping per-flow memory bounded.
@@ -45,7 +45,7 @@ pub fn normalize(a: SocketAddr) -> SocketAddr {
 }
 
 pub struct FrontUdp {
-    io: AsyncFd<std::net::UdpSocket>,
+    io: UdpSocket,
     state: UdpSocketState,
     pub addr: SocketAddr,
     peer: Option<SocketAddr>,
@@ -70,7 +70,9 @@ impl FrontUdp {
         let state = UdpSocketState::new((&socket).into())?;
         Ok(Arc::new(Self {
             addr: socket.local_addr()?,
-            io: AsyncFd::new(socket)?,
+            // Tokio owns registration and descriptor lifetime; raw datagram I/O
+            // below uses its readiness adapter without a second registration.
+            io: UdpSocket::from_std(socket)?,
             state,
             peer,
         }))
@@ -79,11 +81,13 @@ impl FrontUdp {
         loop {
             let meta = self
                 .io
-                .async_io(Interest::READABLE, |socket| {
+                .async_io(Interest::READABLE, || {
                     let mut meta = [RecvMeta::default()];
-                    let n =
-                        self.state
-                            .recv(socket.into(), &mut [IoSliceMut::new(buf)], &mut meta)?;
+                    let n = self.state.recv(
+                        (&self.io).into(),
+                        &mut [IoSliceMut::new(buf)],
+                        &mut meta,
+                    )?;
                     if n == 0 {
                         return Err(io::Error::from(io::ErrorKind::WouldBlock));
                     }
@@ -106,9 +110,9 @@ impl FrontUdp {
         segment: Option<usize>,
     ) -> io::Result<()> {
         self.io
-            .async_io(Interest::WRITABLE, |socket| {
+            .async_io(Interest::WRITABLE, || {
                 self.state.try_send(
-                    socket.into(),
+                    (&self.io).into(),
                     &Transmit {
                         destination: peer,
                         ecn: None,

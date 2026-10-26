@@ -2,23 +2,24 @@
 """Real installer, files, prompts and Rust processes in private mount/PID namespaces.
 Only systemctl is simulated. No host services, units or account files are changed.
 """
-import os,sys,pathlib,subprocess,tempfile,json,time,socket,urllib.request,http.cookiejar,pty,select,signal,hashlib,termios
+import os,sys,pathlib,subprocess,tempfile,json,time,socket,urllib.request,http.cookiejar,pty,select,signal,hashlib,termios,shutil
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 BIN=pathlib.Path(sys.argv[1]).resolve()
 if '--child' not in sys.argv:
     assert os.geteuid()==0,'Run with sudo (private filesystem namespaces required)'
+    for tool in ['unshare','mount','systemctl','runuser','useradd','visudo','sudo','curl','ss','flock']:
+        assert shutil.which(tool,path=os.environ.get('PATH','')+':/usr/sbin:/sbin'),f'Install test prerequisite before running: {tool}'
     workspace=pathlib.Path(tempfile.mkdtemp(prefix='host-router-installer-'));workspace.chmod(0o755)
     p=subprocess.run(['unshare','--mount','--pid','--fork','--mount-proc',sys.executable,__file__,str(BIN),'--child',str(workspace)])
     print('Installer test artifacts:',workspace)
     raise SystemExit(p.returncode)
 work=pathlib.Path(sys.argv[-1]);os.umask(0o077)
 subprocess.run(['mount','--make-rprivate','/'],check=True)
-for i,dest in enumerate(['/etc','/usr/local','/var/lib','/var/backups']):
+for i,dest in enumerate(['/etc','/usr/local','/var']):
     base=work/f'overlay-{i}';(base/'upper').mkdir(parents=True);(base/'work').mkdir();(base/'upper').chmod(pathlib.Path(dest).stat().st_mode & 0o777)
     subprocess.run(['mount','-t','overlay','overlay','-o',f'lowerdir={dest},upperdir={base}/upper,workdir={base}/work',dest],check=True)
 subprocess.run(['mount','-t','tmpfs','tmpfs','/run'],check=True)
 # Hide any real host installation in the private overlay.
-import shutil
 for p in ['/etc/host-router','/var/lib/host-router-panel','/usr/local/lib/host-router-panel']:
     if pathlib.Path(p).exists():shutil.rmtree(p)
 for p in ['/usr/local/bin/host-router','/etc/systemd/system/host-router.service','/etc/systemd/system/host-router-panel.service','/etc/sudoers.d/host-router-panel']:

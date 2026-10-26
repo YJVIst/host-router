@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 umask 077
 VERSION=0.2.0
-HOSTIP_SHA=3d6d139201ea8c77fc586aa20497d7f2002a044c7131f32e5aaaa33f72435d12
+HOSTIP_SHA=6d0e71b7bf140b88ea8e42585b9dea3a9d6d954cfacc11a69fb28528a90021da
 work="$(mktemp -d)"
 trap 'rm -rf -- "$work"' EXIT
 curl --proto '=https' --tlsv1.2 -fL --retry 2 --connect-timeout 10 --max-time 180 \
