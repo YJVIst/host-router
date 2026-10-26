@@ -5,6 +5,7 @@ mod control;
 mod display;
 mod dns;
 mod net;
+mod panel;
 mod quic;
 mod relay;
 mod release;
@@ -30,6 +31,24 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Start the browser administration panel (separate from the forwarding process).
+    Panel(panel::Options),
+    /// Create initial panel credentials, without starting the HTTP server.
+    PanelInit {
+        #[arg(long, default_value = "/var/lib/host-router-panel")]
+        data_dir: PathBuf,
+    },
+    /// Set panel credentials from stdin. Stop the panel before changing an existing account.
+    PanelAccount {
+        #[arg(long, default_value = "/var/lib/host-router-panel")]
+        data_dir: PathBuf,
+        #[arg(long)]
+        username: String,
+        #[arg(long, required = true)]
+        password_stdin: bool,
+        #[arg(long)]
+        check_only: bool,
+    },
     Serve,
     VerifyRelease {
         #[arg(long)]
@@ -223,6 +242,21 @@ async fn run() -> Result<()> {
     }
     let cli = Cli::parse_from(args);
     match cli.cmd.unwrap_or(Command::Serve) {
+        Command::Panel(options) => panel::serve(cli.config, options).await?,
+        Command::PanelInit { data_dir } => panel::initialize(&data_dir)?,
+        Command::PanelAccount {
+            data_dir,
+            username,
+            password_stdin: _,
+            check_only,
+        } => {
+            use std::io::Read;
+            let mut secret = String::new();
+            std::io::stdin().take(258).read_to_string(&mut secret)?;
+            let secret = secret.strip_suffix('\n').unwrap_or(&secret);
+            let secret = secret.strip_suffix('\r').unwrap_or(secret);
+            panel::set_account(&data_dir, username, secret, check_only)?;
+        }
         Command::VerifyRelease {
             manifest,
             signature,

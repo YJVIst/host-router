@@ -16,12 +16,20 @@ assets={}
 for arch,source in [("amd64",args.amd64),("arm64",args.arm64)]:
     destination=out/f"host-router-linux-{arch}";shutil.copyfile(source,destination);destination.chmod(0o755)
     assets[destination.name]=hashlib.sha256(destination.read_bytes()).hexdigest()
+shutil.copyfile(root/"scripts/install-panel.sh",out/"install-panel.sh")
+assets["install-panel.sh"]=hashlib.sha256((out/"install-panel.sh").read_bytes()).hexdigest()
 script=(root/"hostip.sh").read_text()
 script=re.sub(r"^VERSION=.*$",f"VERSION={version}",script,flags=re.M)
+script=re.sub(r"^PANEL_INSTALL_SHA=.*$","PANEL_INSTALL_SHA="+assets["install-panel.sh"],script,flags=re.M)
 for arch in ["amd64","arm64"]:
     script=re.sub(r"^"+arch.upper()+r"_SHA=.*$",arch.upper()+"_SHA="+assets[f"host-router-linux-{arch}"],script,flags=re.M)
 (root/"hostip.sh").write_text(script);(out/"hostip.sh").write_text(script);(out/"hostip.sh").chmod(0o755)
 assets["hostip.sh"]=hashlib.sha256((out/"hostip.sh").read_bytes()).hexdigest()
+bootstrap=(root/"install.sh").read_text()
+bootstrap=re.sub(r"^VERSION=.*$",f"VERSION={version}",bootstrap,flags=re.M)
+bootstrap=re.sub(r"^HOSTIP_SHA=.*$","HOSTIP_SHA="+assets["hostip.sh"],bootstrap,flags=re.M)
+(root/"install.sh").write_text(bootstrap);(out/"install.sh").write_text(bootstrap);(out/"install.sh").chmod(0o755)
+assets["install.sh"]=hashlib.sha256((out/"install.sh").read_bytes()).hexdigest()
 files=subprocess.check_output(["git","ls-files","-z"]).decode().split("\0")
 with tarfile.open(out/"host-router-source.tar.gz","w:gz") as archive:
     for name in files:
@@ -33,7 +41,7 @@ with tarfile.open(out/"host-router-source.tar.gz","w:gz") as archive:
         info.uid=info.gid=0;info.uname=info.gname="";info.mtime=0
         with f.open("rb") as data:archive.addfile(info,data)
 assets["host-router-source.tar.gz"]=hashlib.sha256((out/"host-router-source.tar.gz").read_bytes()).hexdigest()
-manifest={"version":version,"assets":{name:{"sha256":digest,"url":f"https://github.com/coexacx/host-router/releases/download/v{version}/{name}"} for name,digest in assets.items()}}
+manifest={"version":version,"assets":{name:{"sha256":digest,"url":f"https://github.com/YJVIst/host-router/releases/download/v{version}/{name}"} for name,digest in assets.items()}}
 (out/"manifest.json").write_text(json.dumps(manifest,indent=2)+"\n")
 subprocess.run(["openssl","pkeyutl","-sign","-rawin","-inkey",str(key),"-in",str(out/"manifest.json"),"-out",str(out/"manifest.sig")],check=True)
 for asset in assets:

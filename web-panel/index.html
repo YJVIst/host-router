@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#0d7964" />
+    <title>Host Router · 控制中心</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%230d7964'/%3E%3Cpath d='M10 12h8v16h-8m12-16h8v16h-8M18 20h4' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="app.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <section id="login-screen" class="login-screen">
+      <div class="login-story">
+        <a class="brand" href="./"
+          ><span class="brand-icon">H<span>↗</span></span
+          ><span>Host Router<small>NETWORK CONTROL</small></span></a
+        >
+        <div class="story-main">
+          <span class="eyebrow">ONE ENTRY. EVERY DESTINATION.</span>
+          <h1>让每一条连接，<br />各得其所。</h1>
+          <p>
+            从域名到目的地。用一个清晰的控制中心，<br />管理你的 TCP 与 QUIC
+            转发网络。
+          </p>
+          <div class="route-art">
+            <div class="art-node">HTTPS / QUIC</div>
+            <div class="art-line"></div>
+            <div class="art-hub">H<span>↗</span></div>
+            <div class="art-branches">
+              <span>app.example.com <b>→</b></span
+              ><span>*.example.org <b>→</b></span
+              ><span>默认目标 <b>→</b></span>
+            </div>
+          </div>
+        </div>
+        <div class="story-footer">
+          <span class="dot"></span> Rust 驱动 · 流量原样透传
+        </div>
+      </div>
+      <div class="login-box">
+        <div class="login-inner">
+          <span class="eyebrow">ADMINISTRATOR ACCESS</span>
+          <h2>欢迎回来</h2>
+          <p class="muted">登录控制中心，掌握你的转发网络。</p>
+          <form id="login-form">
+            <label
+              >管理员账号<input
+                name="username"
+                autocomplete="username"
+                required
+                placeholder="输入管理员账号" /></label
+            ><label
+              >密码<input
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                required
+                placeholder="输入登录密码"
+            /></label>
+            <p id="login-error" class="form-error" role="alert"></p>
+            <button class="primary full" type="submit">
+              登录控制中心 <span>→</span>
+            </button>
+          </form>
+          <p class="login-note">仅限管理员访问 · 安全会话保护</p>
+        </div>
+        <div class="login-foot">
+          HOST ROUTER <span>轻量 · 清晰 · 高效</span>
+        </div>
+      </div>
+    </section>
+    <div id="app" class="app" hidden>
+      <aside class="sidebar">
+        <a class="brand" href="#overview"
+          ><span class="brand-icon">H<span>↗</span></span
+          ><span>Host Router<small>CONTROL CENTER</small></span></a
+        >
+        <div class="nav-caption">工作空间</div>
+        <nav id="navigation">
+          <button data-page="overview" class="nav-item active">
+            <span data-icon="overview"></span>总览<span class="nav-tag"
+              >LIVE</span
+            ></button
+          ><button data-page="rules" class="nav-item">
+            <span data-icon="routes"></span>转发规则<span
+              id="nav-count"
+              class="count"
+              >0</span
+            ></button
+          ><button data-page="backups" class="nav-item">
+            <span data-icon="backup"></span>配置备份</button
+          ><button data-page="activity" class="nav-item">
+            <span data-icon="activity"></span>操作记录</button
+          ><button data-page="settings" class="nav-item">
+            <span data-icon="settings"></span>系统设置
+          </button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="core-mini">
+            <span class="dot" id="core-dot"></span
+            ><span id="core-text">正在连接内核</span
+            ><small id="core-version">—</small>
+          </div>
+          <button id="logout" class="profile">
+            <span class="avatar">A</span
+            ><span
+              ><b id="username">管理员</b><small>管理员工作空间</small></span
+            ><span data-icon="logout"></span>
+          </button>
+        </div>
+      </aside>
+      <div class="workspace">
+        <header class="topbar">
+          <button id="menu-button" class="icon-button" aria-label="切换菜单">
+            <span data-icon="menu"></span>
+          </button>
+          <div class="breadcrumb">
+            工作空间 <span>/</span> <b id="breadcrumb">总览</b>
+          </div>
+          <div class="top-meta">
+            <span id="clock"></span><span class="top-separator"></span
+            ><span class="shield" data-icon="shield"></span
+            ><span>管理员控制台</span>
+          </div>
+        </header>
+        <main id="content" tabindex="-1"></main>
+        <footer class="workspace-footer">
+          <span
+            >Host Router <span class="footer-dot">·</span> Rust forwarding
+            engine</span
+          ><span id="last-updated">等待实时数据</span>
+        </footer>
+      </div>
+    </div>
+    <dialog id="modal"><div id="modal-content"></div></dialog>
+    <div id="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>

@@ -43,7 +43,7 @@ try:
     output=menu(["4","1 999","y","","0"]);assert len(rules())==3 and "删除失败" in output
     menu(["5","1","60","","0"]);assert json.loads(cfg.read_text())["dns_refresh_seconds"]==60
     output=menu(["7","1","","0"]);assert "保护状态" in output and "当前使用 / 有效上限" in output
-    for submenu in ["2","5","6","7","8"]:
+    for submenu in ["2","5","6","7","8","10"]:
         menu([submenu,"0","0"])
     before=cfg.read_bytes();batch_file=root/"preview.txt";batch_file.write_text("preview.test 127.0.0.1 29678\n")
     preview=subprocess.run([binary,"-c",str(cfg),"add-batch","--listen",ports[0],"--file",str(batch_file),"--check-only"],capture_output=True,text=True)

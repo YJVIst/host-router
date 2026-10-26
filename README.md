@@ -1,16 +1,32 @@
 # Host Router
 
-使用 Rust 编写的 TCP / QUIC 域名分流内核，附带中文终端管理菜单。
+使用 Rust 编写的 TCP / QUIC 域名分流内核，附带中文终端菜单和 Rust 可视化管理面板。
 
 同一个监听端口可以按域名转发到不同后端。TCP 识别 TLS SNI 或 HTTP Host；UDP 识别 QUIC v1 / v2 的 ClientHello SNI。规则支持精确域名、通配域名和默认目标。
 
 **普通 UDP 默认拒绝。** 它通常没有域名信息，不能套用 HTTP/TLS 的分流方法。本项目不将普通 UDP 自动送往默认目标。
 
+## 浏览器管理面板
+
+新增 Rust 管理面板：实时仪表盘、规则编辑与批量管理、JSON 导入导出、自动备份恢复、操作记录、账户安全和内核服务启停。面板复用现有内核的私有控制接口与事务热加载，静态界面内嵌二进制。
+
+以 root 执行，按提示填写 **管理员用户名、密码、Web 端口**：
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/YJVIst/host-router/main/install.sh) panel-install
+```
+
+默认由 Rust 直接提供 `http://服务器IP:端口/`，不安装 Nginx、不申请证书。安装器自动配置独立面板服务；已有转发内核和规则保留。没有内核时初始化空规则并启动内核。再次运行会按输入重设面板账户和端口。
+
+登录信息保存在 `/var/lib/host-router-panel/管理员登录信息.txt`（权限 0600），访问地址在同目录 `access.txt`。部署服务器无需任何特定挂载硬盘。若有安全组，需自行放行所选 Web 端口。
+
+不加 `panel-install` 可打开菜单，选择 **10 → 可视化管理面板**，执行安装、账户/端口重设、启停或查看登录信息。手动构建、可选 HTTPS 反向代理和测试说明见 [管理面板文档](docs/管理面板.md)。
+
 ## 安装
 
 适用于采用 systemd 的常见 Linux 发行版。提供 amd64、arm64 的静态二进制；运行时无需 Go、Rust、Python 或数据库。
 
-需要 Bash、curl、CA 证书、sha256sum、flock 和 useradd。Debian/Ubuntu 可先执行：
+入口需要 Bash、curl、CA 证书和 sha256sum。面板安装器在 Debian/Ubuntu 或采用 dnf/yum 的发行版上自动补装缺失的 sudo、util-linux、useradd、iproute 等工具；其他系统需先自行安装。仅安装终端内核时还需要 flock 和 useradd。Debian/Ubuntu 可先执行：
 
 ```bash
 sudo apt update
@@ -20,7 +36,7 @@ sudo apt install -y curl ca-certificates passwd util-linux
 下载脚本到本地后安装：
 
 ```bash
-curl -fL https://github.com/coexacx/host-router/releases/latest/download/hostip.sh -o hostip.sh
+curl -fL https://github.com/YJVIst/host-router/releases/latest/download/hostip.sh -o hostip.sh
 sudo bash hostip.sh install
 sudo bash hostip.sh
 ```
@@ -109,7 +125,9 @@ sudo bash hostip.sh check-update
 sudo bash hostip.sh update
 ```
 
-更新来源固定为 `coexacx/host-router` 的 GitHub Release。普通启动不会自动升级。只有主动选择更新才安装新版。
+**从 0.1.3 或更早版本迁移：** 旧脚本/验证器使用旧仓库地址及旧签名公钥。0.2.0 更正为本仓库并更换发布签名密钥，因此请先从上方官方入口重新下载脚本，再安装面板或执行更新。旧验证器不能直接验证新签名；不要跳过校验。新版入口固定验证管理脚本 SHA256，管理脚本再固定验证对应二进制与面板安装器，后续更新使用新 Ed25519 公钥验证清单。
+
+更新来源固定为 `YJVIst/host-router` 的 GitHub Release。普通启动不会自动升级。只有主动选择更新才安装新版。
 
 旧版 Go 迁移说明见 [docs/迁移与部署.md](docs/迁移与部署.md)。升级会保存原规则，缺少协议字段的旧规则自动补为 TCP+UDP。内核替换需要短暂重启，现有连接可能重连；规则和目标地址会保留。
 

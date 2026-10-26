@@ -3,10 +3,11 @@
 set -Eeuo pipefail
 umask 077
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-VERSION=0.1.3
-REPO=coexacx/host-router
-AMD64_SHA=3746793a8331434f6533e1590d9ed5f9adf4638e62e6b37f30125b5cfb6b4afe
-ARM64_SHA=96e2ef1708b15104b34813a285cf866970a141b50b3b581454dae4492e6ee01d
+VERSION=0.2.0
+REPO=YJVIst/host-router
+PANEL_INSTALL_SHA=0cfccd488ec001332d06565052b74d3b525aeb463b54d85e2f6504b954f8c860
+AMD64_SHA=aa87c99c29ddc5debd614ed611704b405d731866ddcae05aef47599f90d75fb1
+ARM64_SHA=27a4c6149b68657414ca7a82310dd05ebd6435fe7d2cf80160e9dfb4d37f8ae5
 BIN="${HOST_ROUTER_BIN:-/usr/local/bin/host-router}"
 CFG="${HOST_ROUTER_CONFIG:-/etc/host-router/config.json}"
 SERVICE=host-router
@@ -17,6 +18,51 @@ run_cli() { [[ -x "$BIN" ]] || die "请先安装内核"; "$BIN" -c "$CFG" "$@"; 
 mode_args() { OFFLINE=(); [[ -S "${CFG%.*}.sock" ]] || OFFLINE=(--offline); }
 fetch() { curl --proto '=https' --tlsv1.2 -fL --retry 2 --connect-timeout 10 --max-time 180 "$1" -o "$2"; }
 digest_ok() { [[ "$(sha256sum -- "$1" | awk '{print $1}')" == "$2" ]]; }
+
+# Download pinned binaries before delegating signature verification or panel installation.
+release_binary() {
+  local work="$1" arch expected candidate="$1/host-router"
+  case "$(uname -m)" in
+    x86_64) arch=amd64; expected="$AMD64_SHA";;
+    aarch64|arm64) arch=arm64; expected="$ARM64_SHA";;
+    *) die "支持 amd64/arm64；其他架构请从源码构建";;
+  esac
+  if [[ -f "$SCRIPT_DIR/bin/host-router-linux-$arch" ]]; then cp -- "$SCRIPT_DIR/bin/host-router-linux-$arch" "$candidate"
+  elif [[ -f /usr/local/lib/host-router-panel/host-router ]] && digest_ok /usr/local/lib/host-router-panel/host-router "$expected"; then cp /usr/local/lib/host-router-panel/host-router "$candidate"
+  elif [[ -f "$BIN" ]] && digest_ok "$BIN" "$expected"; then cp -- "$BIN" "$candidate"
+  else fetch "https://github.com/$REPO/releases/download/v$VERSION/host-router-linux-$arch" "$candidate"; fi
+  digest_ok "$candidate" "$expected" || die "内核 SHA256 校验失败"
+  chmod 0755 "$candidate"
+}
+install_panel() (
+  need_root
+  command -v curl >/dev/null || die "需要 curl 和 CA 证书"
+  work="$(mktemp -d)"; trap 'rm -rf -- "$work"' EXIT
+  release_binary "$work"
+  if [[ -f "$SCRIPT_DIR/scripts/install-panel.sh" ]]; then cp "$SCRIPT_DIR/scripts/install-panel.sh" "$work/install-panel.sh"
+  else fetch "https://github.com/$REPO/releases/download/v$VERSION/install-panel.sh" "$work/install-panel.sh"; fi
+  digest_ok "$work/install-panel.sh" "$PANEL_INSTALL_SHA" || die "面板安装器 SHA256 校验失败"
+  bash "$work/install-panel.sh" --binary "$work/host-router" --config "$CFG" "$@"
+)
+panel_menu() {
+  local action
+  ui_page '可视化管理面板'
+  printf '  1  安装 / 重新配置面板（设置账号、密码和端口）\n  2  启动面板\n  3  停止面板\n  4  重启面板\n  5  查看访问地址与登录信息\n  6  HTTPS 反向代理说明\n\n  0  返回主菜单\n\n'
+  read -r -p '  请选择：' action || return 0
+  case "$action" in
+    0|'') PAUSE=0; return 0;;
+    1) bash "$UI_SCRIPT" panel-install;;
+    2) need_root; systemctl start host-router-panel.service;;
+    3) need_root; systemctl stop host-router-panel.service;;
+    4) need_root; systemctl restart host-router-panel.service;;
+    5) need_root
+       [[ -f /var/lib/host-router-panel/access.txt ]] || { printf '  尚未安装面板或使用了自定义数据目录。\n'; return 0; }
+       cat /var/lib/host-router-panel/access.txt
+       cat /var/lib/host-router-panel/管理员登录信息.txt;;
+    6) printf '  默认使用 Rust HTTP 端口，不安装 Nginx 或申请证书。\n  HTTPS 反向代理可按文档自行配置：\n  https://github.com/YJVIst/host-router/blob/main/docs/管理面板.md\n';;
+    *) printf '  请输入 0–6。\n';;
+  esac
+}
 
 install_router() (
   set -Eeuo pipefail
@@ -159,10 +205,12 @@ update_router() (
   trap 'rm -rf -- "$work"' EXIT
   fetch "https://github.com/$REPO/releases/latest/download/manifest.json" "$work/manifest.json"
   fetch "https://github.com/$REPO/releases/latest/download/manifest.sig" "$work/manifest.sig"
-  read -r state version digest url < <(run_cli verify-release --manifest "$work/manifest.json" --signature "$work/manifest.sig" --asset hostip.sh)
+  release_binary "$work"
+  read -r state version digest url < <("$work/host-router" verify-release --manifest "$work/manifest.json" --signature "$work/manifest.sig" --asset hostip.sh)
   [[ -n "${state:-}" && -n "${digest:-}" ]] || die "更新信息未通过签名验证"
-  if [[ "$state" != new ]]; then printf '当前内核已是最新稳定版：%s\n' "$version"; exit 0; fi
-  printf '发现新版 %s，当前 %s。升级需要短暂重启。\n' "$version" "$VERSION"
+  installed_version="$("$BIN" --version | awk '{print $NF}')"
+  if [[ "$state" == older || "$(printf '%s\n' "$version" "$installed_version" | sort -V | tail -n 1)" == "$installed_version" ]]; then printf '当前内核已是最新稳定版：%s\n' "$installed_version"; exit 0; fi
+  printf '发现新版 %s，当前 %s。升级需要短暂重启。\n' "$version" "$installed_version"
   if [[ "${1:-}" == check ]]; then exit 0; fi
   fetch "$url" "$work/hostip.sh"
   digest_ok "$work/hostip.sh" "$digest" || die "脚本校验失败"
@@ -373,7 +421,7 @@ monitor_menu() {
 update_menu() {
   local action
   ui_page '版本更新'
-  printf '  更新来源：GitHub · coexacx/host-router\n\n'
+  printf '  更新来源：GitHub · YJVIst/host-router\n\n'
   printf '  1  检查最新版本\n  2  下载并安装更新\n\n  0  返回主菜单\n\n'
   read -r -p '  请选择：' action || return 0
   case "$action" in
@@ -418,7 +466,8 @@ menu() {
     printf '\n  %s9%s  %s        %s0%s  退出\n' "$UI_ACCENT" "$UI_RESET" "$install_label" "$UI_ACCENT" "$UI_RESET"
     ui_line
     printf '  %sUDP 支持 QUIC；普通 UDP 不转发。%s\n\n' "$UI_DIM" "$UI_RESET"
-    read -r -p '  请选择 [0–9]：' choice || return 0
+    printf '  %s10%s 可视化管理面板\n\n' "$UI_ACCENT" "$UI_RESET"
+    read -r -p '  请选择 [0–10]：' choice || return 0
     PAUSE=1
     case "$choice" in
       1) ui_page '转发规则'; view_rules || true;;
@@ -429,6 +478,7 @@ menu() {
       6) service_menu || true;;
       7) monitor_menu || true;;
       8) update_menu || true;;
+      10) panel_menu || true;;
       9) ui_page "$install_label"
          confirm=y
          if [[ -x "$BIN" ]]; then read -r -p '  将保留规则并重启内核，继续？[y/N]：' confirm || return 0; fi
@@ -445,9 +495,10 @@ menu() {
 }
 case "${1:-menu}" in
   install) install_router;;
+  panel-install) shift; install_panel "$@";;
   update) update_router;;
   check-update) update_router check;;
   menu) menu;;
   cli) shift; run_cli "$@";;
-  *) printf '用法：bash hostip.sh [menu|install|update|check-update|cli ...]\n' >&2; exit 2;;
+  *) printf '用法：bash hostip.sh [menu|install|panel-install|update|check-update|cli ...]\n' >&2; exit 2;;
 esac

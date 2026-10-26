@@ -11,12 +11,12 @@ def check(success=True):
     assert (p.returncode==0)==success,(p.stdout,p.stderr)
     return p.stdout
 version=subprocess.check_output([binary,"--version"],text=True).strip().split()[-1]
-d={"version":version,"assets":{"hostip.sh":{"sha256":"a"*64,"url":f"https://github.com/coexacx/host-router/releases/download/v{version}/hostip.sh"}}}
+d={"version":version,"assets":{"hostip.sh":{"sha256":"a"*64,"url":f"https://github.com/YJVIst/host-router/releases/download/v{version}/hostip.sh"}}}
 sign(d);assert check().startswith("current")
 manifest.write_bytes(manifest.read_bytes()+b" ");check(False)
 sign(d);signature.write_bytes(bytes(64));check(False)
 d["assets"]["hostip.sh"]["url"]="https://example.com/evil.sh";sign(d);check(False)
-d["version"]="0.0.1";d["assets"]["hostip.sh"]["url"]="https://github.com/coexacx/host-router/releases/download/v0.0.1/hostip.sh"
+d["version"]="0.0.1";d["assets"]["hostip.sh"]["url"]="https://github.com/YJVIst/host-router/releases/download/v0.0.1/hostip.sh"
 sign(d);assert check().startswith("older")
 print("PASS valid signature, manifest tampering, forged signature, foreign URL, downgrade classification")
 print("Artifacts:",root)

@@ -1,0 +1,14 @@
+{
+  "name": "host-router-panel-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node ../tests/panel-browser.mjs",
+    "format": "prettier --write index.html app.css app.js ../tests/panel-browser.mjs",
+    "format:check": "prettier --check index.html app.css app.js ../tests/panel-browser.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "prettier": "3.9.10"
+  }
+}

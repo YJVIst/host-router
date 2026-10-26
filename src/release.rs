@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
 use std::{collections::BTreeMap, path::Path};
-const PUBLIC_KEY: &str = "6fdb995c777fe2483e1e74f4490046d339bf0a6a1c24c3193d8b85ca4bbe321d";
+const PUBLIC_KEY: &str = "e8c871d8ea13a1f56594830aeddbccf114b1f983f1142d1c45ef245ce5f415c5";
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Manifest {
@@ -53,6 +53,8 @@ pub fn verify(manifest: &Path, signature: &Path, asset: &str) -> Result<()> {
     ensure!(
         [
             "hostip.sh",
+            "install-panel.sh",
+            "install.sh",
             "host-router-linux-amd64",
             "host-router-linux-arm64",
             "host-router-source.tar.gz"
@@ -68,7 +70,7 @@ pub fn verify(manifest: &Path, signature: &Path, asset: &str) -> Result<()> {
     ensure!(
         a.url
             == format!(
-                "https://github.com/coexacx/host-router/releases/download/v{}/{asset}",
+                "https://github.com/YJVIst/host-router/releases/download/v{}/{asset}",
                 m.version
             ),
         "untrusted release URL"

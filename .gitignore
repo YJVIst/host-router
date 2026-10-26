@@ -7,3 +7,7 @@
 *.key
 __pycache__/
 *.pyc
+
+/web-panel/node_modules/
+/playwright-report/
+/test-results/
